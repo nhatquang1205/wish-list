@@ -3,6 +3,15 @@ import { AUTH_COOKIE, readToken } from "@/lib/auth";
 
 const PUBLIC_PATHS = ["/login", "/api/login"];
 
+/**
+ * A relative Location, resolved by the browser against the host it actually
+ * asked for. `new URL(path, request.url)` would hardcode whatever host Next
+ * thinks it is serving, which behind a reverse proxy is localhost:3000.
+ */
+function redirectTo(path: string) {
+  return new NextResponse(null, { status: 307, headers: { Location: path } });
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
@@ -16,19 +25,14 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Locked" }, { status: 401 });
     }
-    const loginUrl = new URL("/login", request.url);
-    if (pathname !== "/") loginUrl.searchParams.set("next", `${pathname}${search}`);
-    return NextResponse.redirect(loginUrl);
+    const next =
+      pathname === "/" ? "" : `?next=${encodeURIComponent(`${pathname}${search}`)}`;
+    return redirectTo(`/login${next}`);
   }
 
   // Each role has its own home. Landing anywhere else sends you to yours.
-  const home = role === "admin" ? "/admin" : "/";
-  if (role === "admin" && pathname === "/") {
-    return NextResponse.redirect(new URL(home, request.url));
-  }
-  if (role !== "admin" && pathname.startsWith("/admin")) {
-    return NextResponse.redirect(new URL(home, request.url));
-  }
+  if (role === "admin" && pathname === "/") return redirectTo("/admin");
+  if (role !== "admin" && pathname.startsWith("/admin")) return redirectTo("/");
 
   return NextResponse.next();
 }
