@@ -1,0 +1,53 @@
+name: CI / Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Never let two deploys race each other onto the same box.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      # No DATABASE_URL here on purpose: every page is force-dynamic, so the
+      # build never opens a connection. If this starts failing, something began
+      # touching the database at build time.
+      - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+
+  deploy:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Load SSH key
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "${{ secrets.VPS_PORT || '22' }}" -H "${{ secrets.VPS_HOST }}" \
+            >> ~/.ssh/known_hosts 2>/dev/null
+
+      # The script is piped in, so the box never needs it checked out first.
+      # APP_URL arrives as $1 — ssh does not forward the runner's environment.
+      - name: Deploy
+        run: |
+          ssh -p "${{ secrets.VPS_PORT || '22' }}" \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "bash -s -- '${{ secrets.APP_URL }}'" < scripts/deploy.sh

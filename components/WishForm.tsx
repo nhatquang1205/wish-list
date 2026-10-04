@@ -7,7 +7,6 @@ import { isHttpUrl, type Wish, type WishInput } from "@/lib/types";
 const EMPTY = {
   title: "",
   url: "",
-  imageUrl: "",
   note: "",
   rating: 5,
   tags: "",
@@ -42,7 +41,6 @@ export function WishForm({
         ? {
             title: editing.title,
             url: editing.url ?? "",
-            imageUrl: editing.imageUrl ?? "",
             note: editing.note ?? "",
             rating: editing.rating,
             tags: editing.tags.join(", "),
@@ -75,13 +73,8 @@ export function WishForm({
 
     const title = form.title.trim();
     if (!title) return setError("Give it a name first.");
-    for (const [value, label] of [
-      [form.url, "store link"],
-      [form.imageUrl, "image link"],
-    ] as const) {
-      if (value.trim() && !isHttpUrl(value.trim())) {
-        return setError(`The ${label} needs to start with http:// or https://`);
-      }
+    if (form.url.trim() && !isHttpUrl(form.url.trim())) {
+      return setError("The store link needs to start with http:// or https://");
     }
 
     setSaving(true);
@@ -90,7 +83,8 @@ export function WishForm({
       await onSubmit({
         title,
         url: form.url.trim() || null,
-        imageUrl: form.imageUrl.trim() || null,
+        // No longer editable, but an image already on the wish is kept.
+        imageUrl: editing?.imageUrl ?? null,
         note: form.note.trim() || null,
         rating: form.rating,
         tags: form.tags
@@ -137,21 +131,6 @@ export function WishForm({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="url" className={labelClass}>
-              Store link
-            </label>
-            <input
-              id="url"
-              type="url"
-              inputMode="url"
-              value={form.url}
-              onChange={(e) => set("url", e.target.value)}
-              placeholder="Paste the Shopee / Lazada / TikTok link"
-              className={fieldClass}
-            />
-          </div>
-
-          <div>
             <label htmlFor="title" className={labelClass}>
               What is it?
             </label>
@@ -162,7 +141,22 @@ export function WishForm({
               maxLength={120}
               value={form.title}
               onChange={(e) => set("title", e.target.value)}
-              placeholder="Silk hair ribbon"
+              placeholder="Don't hesitate"
+              className={fieldClass}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="url" className={labelClass}>
+              Store link
+            </label>
+            <input
+              id="url"
+              type="url"
+              inputMode="url"
+              value={form.url}
+              onChange={(e) => set("url", e.target.value)}
+              placeholder="Paste the link"
               className={fieldClass}
             />
           </div>
@@ -170,21 +164,6 @@ export function WishForm({
           <div>
             <span className={labelClass}>How much do you love it?</span>
             <HeartRating value={form.rating} onChange={(v) => set("rating", v)} size="lg" />
-          </div>
-
-          <div>
-            <label htmlFor="imageUrl" className={labelClass}>
-              Photo link <span className="normal-case tracking-normal">(optional)</span>
-            </label>
-            <input
-              id="imageUrl"
-              type="url"
-              inputMode="url"
-              value={form.imageUrl}
-              onChange={(e) => set("imageUrl", e.target.value)}
-              placeholder="Long-press or right-click the photo → copy image link"
-              className={fieldClass}
-            />
           </div>
 
           <div>
@@ -214,13 +193,6 @@ export function WishForm({
               className={fieldClass}
             />
           </div>
-
-          {!editing && (
-            <p className="rounded-xl bg-gold-soft/25 px-4 py-3 text-xs leading-relaxed text-muted">
-              Every new wish starts as <span className="text-ink">Wishing</span>. Only the admin can
-              change that.
-            </p>
-          )}
 
           {error && (
             <p role="alert" className="rounded-xl bg-rose-tint px-4 py-3 text-sm text-rose">
