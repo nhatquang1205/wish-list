@@ -1,0 +1,58 @@
+/* ───────────────────────────────────────────────────────────────────────────
+   Alternate palettes.
+
+   To switch: copy one block below and paste it over the @theme colour tokens
+   in globals.css (keep the --font-*, --radius-* and --animate-* lines). You
+   may also want to swap the two radial gradients on `body` for the ones noted
+   under each palette.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* ── Strawberry Milk ── soft, creamy, cosy ────────────────────────────────
+  --color-cream:      #fff5f7;
+  --color-cream-deep: #ffe3ea;
+  --color-card:       #ffffff;
+  --color-rose:       #ff8fab;
+  --color-rose-soft:  #ffc2d1;
+  --color-rose-tint:  #fff0f4;
+  --color-gold:       #fb6f92;
+  --color-gold-soft:  #ffd3de;
+  --color-ink:        #4a2c3a;
+  --color-muted:      #9c7285;
+  --color-hairline:   #ffdbe4;
+  body gradients: radial-gradient(60rem 40rem at 12% -10%, #ffe3ea 0%, transparent 60%),
+                  radial-gradient(48rem 34rem at 108% 8%, #fff0f4 0%, transparent 58%);
+  --radius-card: 24px;
+*/
+
+/* ── Sakura Dream ── pale pink into lavender, dreamy ──────────────────────
+  --color-cream:      #ffe5ec;
+  --color-cream-deep: #f3e8ff;
+  --color-card:       #fffdfe;
+  --color-rose:       #e89ac7;
+  --color-rose-soft:  #f3cfe5;
+  --color-rose-tint:  #fdf2f8;
+  --color-gold:       #c77dff;
+  --color-gold-soft:  #e6d0ff;
+  --color-ink:        #5b3a55;
+  --color-muted:      #9b7d97;
+  --color-hairline:   #f0dcec;
+  body gradients: radial-gradient(60rem 40rem at 12% -10%, #ffe5ec 0%, transparent 62%),
+                  radial-gradient(48rem 34rem at 108% 8%, #f3e8ff 0%, transparent 60%);
+*/
+
+/* ── Hot Pink Pop ── bold, playful, high contrast ─────────────────────────
+  --color-cream:      #ffffff;
+  --color-cream-deep: #ffe3ef;
+  --color-card:       #fff0f6;
+  --color-rose:       #ff2e88;
+  --color-rose-soft:  #ffb3d1;
+  --color-rose-tint:  #fff0f6;
+  --color-gold:       #ffd166;
+  --color-gold-soft:  #ffe8b0;
+  --color-ink:        #1a0a14;
+  --color-muted:      #7a3a5c;
+  --color-hairline:   #ffb3d1;
+  body gradients: none — keep it flat white.
+  Pairs well with: thicker borders (border-2) and a hard offset shadow, e.g.
+  .card-shadow { box-shadow: 4px 4px 0 var(--color-rose); }
+*/
