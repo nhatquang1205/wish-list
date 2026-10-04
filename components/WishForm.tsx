@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { HeartRating } from "./HeartRating";
+import { PhotoPicker } from "./PhotoPicker";
 import { isHttpUrl, type Wish, type WishInput } from "@/lib/types";
 
 const EMPTY = {
   title: "",
   url: "",
+  imageUrl: null as string | null,
   note: "",
   rating: 5,
   tags: "",
@@ -41,6 +43,7 @@ export function WishForm({
         ? {
             title: editing.title,
             url: editing.url ?? "",
+            imageUrl: editing.imageUrl,
             note: editing.note ?? "",
             rating: editing.rating,
             tags: editing.tags.join(", "),
@@ -83,8 +86,7 @@ export function WishForm({
       await onSubmit({
         title,
         url: form.url.trim() || null,
-        // No longer editable, but an image already on the wish is kept.
-        imageUrl: editing?.imageUrl ?? null,
+        imageUrl: form.imageUrl,
         note: form.note.trim() || null,
         rating: form.rating,
         tags: form.tags
@@ -160,6 +162,8 @@ export function WishForm({
               className={fieldClass}
             />
           </div>
+
+          <PhotoPicker value={form.imageUrl} onChange={(url) => set("imageUrl", url)} />
 
           <div>
             <span className={labelClass}>How much do you love it?</span>

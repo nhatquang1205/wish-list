@@ -3,9 +3,17 @@
 import { useMemo, useState } from "react";
 import { EmptyState } from "./EmptyState";
 import { FilterChips } from "./FilterChips";
+import { StatusNoteModal } from "./StatusNoteModal";
 import { WishCard } from "./WishCard";
+import { WishDetail } from "./WishDetail";
 import { WishForm } from "./WishForm";
-import { WISH_STATUSES, type Wish, type WishInput, type WishStatus } from "@/lib/types";
+import {
+  WISH_STATUSES,
+  promptsForNote,
+  type Wish,
+  type WishInput,
+  type WishStatus,
+} from "@/lib/types";
 import type { Role } from "@/lib/auth";
 
 type Sort = "newest" | "loved" | "name";
@@ -42,6 +50,9 @@ export function WishBoard({
   const [sort, setSort] = useState<Sort>("newest");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Wish | null>(null);
+  const [detail, setDetail] = useState<Wish | null>(null);
+  // An approve/reject waiting on the admin's note.
+  const [pending, setPending] = useState<{ wish: Wish; status: WishStatus } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const flash = (message: string) => {
@@ -97,25 +108,40 @@ export function WishBoard({
     setFormOpen(false);
   }
 
-  /** Admin-only: its own endpoint, so an edit can never carry a status. */
-  async function handleStatusChange(wish: Wish, next: WishStatus) {
+  /**
+   * Admin-only: its own endpoint, so an edit can never carry a status.
+   * Approving and rejecting go through the note modal first; the note is part
+   * of the same request, so a decision is never saved without its reason.
+   */
+  async function saveStatus(wish: Wish, next: WishStatus, note?: string | null) {
     const previous = wishes;
     setWishes((list) => list.map((w) => (w.id === wish.id ? { ...w, status: next } : w)));
     try {
       const saved = await api<Wish>(`/api/wishes/${wish.id}/status`, {
         method: "PUT",
-        body: JSON.stringify({ status: next }),
+        body: JSON.stringify(note === undefined ? { status: next } : { status: next, note }),
       });
       setWishes((list) => list.map((w) => (w.id === saved.id ? saved : w)));
     } catch (error) {
       setWishes(previous);
-      flash(error instanceof Error ? error.message : "Could not update that.");
+      throw error;
     }
+  }
+
+  function handleStatusChange(wish: Wish, next: WishStatus) {
+    if (promptsForNote(next)) {
+      setPending({ wish, status: next });
+      return;
+    }
+    saveStatus(wish, next).catch((error) =>
+      flash(error instanceof Error ? error.message : "Could not update that."),
+    );
   }
 
   async function handleDelete(wish: Wish) {
     const previous = wishes;
     setWishes((list) => list.filter((w) => w.id !== wish.id));
+    setDetail(null);
     try {
       await api(`/api/wishes/${wish.id}`, { method: "DELETE" });
     } catch (error) {
@@ -173,10 +199,7 @@ export function WishBoard({
               key={wish.id}
               wish={wish}
               role={role}
-              onEdit={(w) => {
-                setEditing(w);
-                setFormOpen(true);
-              }}
+              onOpen={setDetail}
               onDelete={handleDelete}
               onStatusChange={handleStatusChange}
             />
@@ -204,6 +227,31 @@ export function WishBoard({
         >
           {toast}
         </div>
+      )}
+
+      {!isAdmin && detail && (
+        <WishDetail
+          wish={wishes.find((w) => w.id === detail.id) ?? detail}
+          onClose={() => setDetail(null)}
+          onEdit={(w) => {
+            setDetail(null);
+            setEditing(w);
+            setFormOpen(true);
+          }}
+          onDelete={handleDelete}
+        />
+      )}
+
+      {isAdmin && pending && (
+        <StatusNoteModal
+          wish={pending.wish}
+          status={pending.status}
+          onCancel={() => setPending(null)}
+          onConfirm={async (note) => {
+            await saveStatus(pending.wish, pending.status, note);
+            setPending(null);
+          }}
+        />
       )}
 
       {!isAdmin && (

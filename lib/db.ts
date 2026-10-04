@@ -18,6 +18,7 @@ type Row = {
   note: string | null;
   rating: number;
   status: WishStatus;
+  admin_note: string | null;
   tags: string[] | null;
   created_at: Date | string;
   updated_at: Date | string;
@@ -34,6 +35,7 @@ function toWish(row: Row): Wish {
     note: row.note,
     rating: Number(row.rating),
     status: row.status,
+    adminNote: row.admin_note,
     tags: row.tags ?? [],
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
@@ -56,7 +58,8 @@ export interface WishStore {
   get(id: string): Promise<Wish | null>;
   create(input: WishInput): Promise<Wish>;
   update(id: string, patch: WishPatch): Promise<Wish | null>;
-  setStatus(id: string, status: WishStatus): Promise<Wish | null>;
+  /** `note` undefined leaves the existing admin note alone; null clears it. */
+  setStatus(id: string, status: WishStatus, note?: string | null): Promise<Wish | null>;
   remove(id: string): Promise<boolean>;
 }
 
@@ -118,11 +121,18 @@ function createPostgresStore(connectionString: string): WishStore {
       );
     },
 
-    async setStatus(id, status) {
+    async setStatus(id, status, note) {
       if (!UUID.test(id)) return null;
+      if (note === undefined) {
+        return one(
+          "update wishes set status = $2, updated_at = now() where id = $1 returning *",
+          [id, status],
+        );
+      }
       return one(
-        "update wishes set status = $2, updated_at = now() where id = $1 returning *",
-        [id, status],
+        `update wishes set status = $2, admin_note = $3, updated_at = now()
+         where id = $1 returning *`,
+        [id, status, note],
       );
     },
 
@@ -155,6 +165,7 @@ function createMemoryStore(): WishStore {
         ...input,
         id: crypto.randomUUID(),
         status: INITIAL_STATUS,
+        adminNote: null,
         createdAt: now,
         updatedAt: now,
       };
@@ -172,10 +183,15 @@ function createMemoryStore(): WishStore {
       wishes[index] = next;
       return next;
     },
-    async setStatus(id, status) {
+    async setStatus(id, status, note) {
       const index = find(id);
       if (index === -1) return null;
-      const next: Wish = { ...wishes[index], status, updatedAt: new Date().toISOString() };
+      const next: Wish = {
+        ...wishes[index],
+        status,
+        adminNote: note === undefined ? wishes[index].adminNote : note,
+        updatedAt: new Date().toISOString(),
+      };
       wishes[index] = next;
       return next;
     },
@@ -208,7 +224,7 @@ export const store: WishStore = {
   get: (id) => resolve().get(id),
   create: (input) => resolve().create(input),
   update: (id, patch) => resolve().update(id, patch),
-  setStatus: (id, status) => resolve().setStatus(id, status),
+  setStatus: (id, status, note) => resolve().setStatus(id, status, note),
   remove: (id) => resolve().remove(id),
 };
 

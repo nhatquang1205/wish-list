@@ -16,6 +16,9 @@ create table if not exists wishes (
 
 create index if not exists wishes_created_at_idx on wishes (created_at desc);
 
+-- The admin's word on a wish, written when approving or rejecting.
+alter table wishes add column if not exists admin_note text;
+
 -- Brings an older database (statuses 'bought'/'gifted') up to the current set.
 alter table wishes drop constraint if exists wishes_status_check;
 update wishes set status = 'done' where status in ('bought', 'gifted');

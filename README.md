@@ -85,9 +85,26 @@ quickest way to revoke access if a code ever gets shared by accident.
 Tags live in a `text[]` column — at most eight short strings per wish, so a join
 table would cost more than it is worth.
 
-Images are whatever URL you paste — there is no scraping, because Shopee and
-friends block it. Right-click (or long-press) a product photo, copy the image
-address, paste it in. A broken or missing image falls back to a rose-gold card.
+## Photos
+
+Nina picks a photo in the form and it uploads straight away to a Backblaze B2
+bucket through B2's S3-compatible API ([lib/storage.ts](lib/storage.ts)); the
+resulting public URL is what gets saved on the wish. Keys are
+`wishes/<uuid>.<ext>`, so they are unguessable and cacheable forever.
+
+Setup: create a **public** bucket, then an application key scoped to just that
+bucket, and set `B2_BUCKET`, `B2_ENDPOINT`, `B2_KEY_ID`, `B2_APP_KEY`. With
+those unset the picker simply reports that storage isn't configured — nothing
+else breaks.
+
+The upload route ([app/api/upload/route.ts](app/api/upload/route.ts)) is Nina-only
+and rejects anything that isn't a JPEG/PNG/WebP/GIF/AVIF/HEIC under 8MB. The
+file passes through the server rather than going direct from the browser, which
+avoids needing CORS rules on the bucket. A broken or missing image falls back to
+a rose-gold letter tile on the card.
+
+Deleting a wish does **not** delete its object from B2 yet — orphans accumulate
+if Nina replaces photos often.
 
 ## Changing the theme
 

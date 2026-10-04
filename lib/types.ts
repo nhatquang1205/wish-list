@@ -53,7 +53,26 @@ export const wishPatchSchema = wishInputSchema.partial();
 /** Admin-only patch. Kept separate so a status can never ride along on an edit. */
 export const wishStatusSchema = z.object({
   status: z.enum(WISH_STATUSES),
+  note: optionalText(500),
 });
+
+/**
+ * A wish can only be marked Done once it has been Approved — nothing arrives
+ * that was never said yes to. Every other move stays open.
+ */
+export function canSetStatus(from: WishStatus, to: WishStatus): boolean {
+  return to === "done" ? from === "approved" : true;
+}
+
+/** Approving or rejecting is a decision, so it comes with a word about why. */
+export function promptsForNote(status: WishStatus): boolean {
+  return status === "approved" || status === "rejected";
+}
+
+/** A rejection without a reason is just a closed door. */
+export function requiresNote(status: WishStatus): boolean {
+  return status === "rejected";
+}
 
 export type WishInput = z.infer<typeof wishInputSchema>;
 export type WishPatch = z.infer<typeof wishPatchSchema>;
@@ -61,6 +80,8 @@ export type WishPatch = z.infer<typeof wishPatchSchema>;
 export type Wish = WishInput & {
   id: string;
   status: WishStatus;
+  /** Set by the admin when approving or rejecting. Nina can only read it. */
+  adminNote: string | null;
   createdAt: string;
   updatedAt: string;
 };
