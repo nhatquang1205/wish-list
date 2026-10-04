@@ -8,7 +8,9 @@ import { isHttpUrl, type Wish, type WishInput } from "@/lib/types";
 const EMPTY = {
   title: "",
   url: "",
-  imageUrl: null as string | null,
+  imagePath: null as string | null,
+  /** Display only — the wish records the path, never this. */
+  imagePreview: null as string | null,
   note: "",
   rating: 5,
   tags: "",
@@ -43,7 +45,8 @@ export function WishForm({
         ? {
             title: editing.title,
             url: editing.url ?? "",
-            imageUrl: editing.imageUrl,
+            imagePath: editing.imagePath,
+            imagePreview: editing.imageUrl,
             note: editing.note ?? "",
             rating: editing.rating,
             tags: editing.tags.join(", "),
@@ -86,7 +89,7 @@ export function WishForm({
       await onSubmit({
         title,
         url: form.url.trim() || null,
-        imageUrl: form.imageUrl,
+        imagePath: form.imagePath,
         note: form.note.trim() || null,
         rating: form.rating,
         tags: form.tags
@@ -163,7 +166,13 @@ export function WishForm({
             />
           </div>
 
-          <PhotoPicker value={form.imageUrl} onChange={(url) => set("imageUrl", url)} />
+          <PhotoPicker
+            path={form.imagePath}
+            preview={form.imagePreview}
+            onChange={(path, url) =>
+              setForm((prev) => ({ ...prev, imagePath: path, imagePreview: url }))
+            }
+          />
 
           <div>
             <span className={labelClass}>How much do you love it?</span>

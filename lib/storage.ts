@@ -28,23 +28,48 @@ type Config = {
   region: string;
   accessKeyId: string;
   secretAccessKey: string;
-  publicBase: string;
 };
 
+/**
+ * A blank line in .env (`B2_REGION=`) reads back as "" rather than undefined,
+ * which would slip past `??` and configure an empty value. Treat it as unset.
+ */
+function env(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  return value ? value : undefined;
+}
+
 function config(): Config | null {
-  const bucket = process.env.B2_BUCKET;
-  const endpoint = process.env.B2_ENDPOINT;
-  const accessKeyId = process.env.B2_KEY_ID;
-  const secretAccessKey = process.env.B2_APP_KEY;
+  const bucket = env("B2_BUCKET");
+  const endpoint = env("B2_ENDPOINT");
+  const accessKeyId = env("B2_KEY_ID");
+  const secretAccessKey = env("B2_APP_KEY");
   if (!bucket || !endpoint || !accessKeyId || !secretAccessKey) return null;
 
   // B2 endpoints look like https://s3.us-west-004.backblazeb2.com
-  const region = process.env.B2_REGION ?? endpoint.match(/s3\.([^.]+)\./)?.[1] ?? "us-east-005";
-  const publicBase = (
-    process.env.B2_PUBLIC_BASE_URL ?? `${endpoint.replace("://", `://${bucket}.`)}`
-  ).replace(/\/$/, "");
+  const region = env("B2_REGION") ?? endpoint.match(/s3\.([^.]+)\./)?.[1] ?? "us-east-005";
 
-  return { bucket, endpoint, region, accessKeyId, secretAccessKey, publicBase };
+  return { bucket, endpoint, region, accessKeyId, secretAccessKey };
+}
+
+/**
+ * Virtual-hosted style, built from the bucket and endpoint:
+ * https://<bucket>.s3.<region>.backblazeb2.com
+ */
+function publicBase(cfg: Config): string {
+  return cfg.endpoint.replace(/\/$/, "").replace("://", `://${cfg.bucket}.`);
+}
+
+/**
+ * Turns a stored key into something an <img> can load. Only the key lives in
+ * the database, so moving bucket or region needs no data migration. Absolute
+ * URLs are passed through, for wishes saved before uploads existed.
+ */
+export function publicImageUrl(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) return value;
+  const cfg = config();
+  return cfg ? `${publicBase(cfg)}/${value.replace(/^\/+/, "")}` : null;
 }
 
 export function storageReady(): boolean {
@@ -62,7 +87,7 @@ function s3(cfg: Config): S3Client {
   return client;
 }
 
-/** Returns the public URL of the stored object. */
+/** Stores the object and returns its key — the only thing a wish records. */
 export async function uploadImage(body: Uint8Array, contentType: string): Promise<string> {
   const cfg = config();
   if (!cfg) throw new Error("Photo storage is not configured.");
@@ -80,5 +105,5 @@ export async function uploadImage(body: Uint8Array, contentType: string): Promis
     }),
   );
 
-  return `${cfg.publicBase}/${key}`;
+  return key;
 }

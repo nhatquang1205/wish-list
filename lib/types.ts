@@ -32,11 +32,34 @@ const optionalText = (max: number) =>
     .nullable()
     .transform((v) => (v ? v : null));
 
+/** A storage key like "wishes/8f3c….jpg" — no leading slash, no traversal. */
+const STORAGE_KEY = /^[A-Za-z0-9][\w-]*\/[\w-]+\.[A-Za-z0-9]{2,5}$/;
+
+export function isStorageKey(value: string | null | undefined): value is string {
+  return !!value && STORAGE_KEY.test(value);
+}
+
+/**
+ * What the form sends for a photo: the object's key in the bucket. An absolute
+ * URL is still accepted so wishes saved before uploads existed keep working.
+ */
+const optionalImage = z
+  .string()
+  .trim()
+  .max(2000)
+  .optional()
+  .nullable()
+  .transform((v) => (v ? v : null))
+  .refine(
+    (v) => v === null || isStorageKey(v) || isHttpUrl(v),
+    "That photo reference doesn't look right",
+  );
+
 /** The fields Nina owns. Status is deliberately absent — only admin sets it. */
 export const wishInputSchema = z.object({
   title: z.string().trim().min(1, "Give it a name").max(120, "Name is too long"),
   url: optionalUrl,
-  imageUrl: optionalUrl,
+  imagePath: optionalImage,
   note: optionalText(500),
   rating: z.coerce.number().int().min(1).max(5),
   tags: z
@@ -82,6 +105,8 @@ export type Wish = WishInput & {
   status: WishStatus;
   /** Set by the admin when approving or rejecting. Nina can only read it. */
   adminNote: string | null;
+  /** Derived from `imagePath` on the server — never stored, never submitted. */
+  imageUrl: string | null;
   createdAt: string;
   updatedAt: string;
 };

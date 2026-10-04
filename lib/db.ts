@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import { publicImageUrl } from "./storage";
 import { INITIAL_STATUS, type Wish, type WishInput, type WishPatch, type WishStatus } from "./types";
 
 /**
@@ -31,7 +32,9 @@ function toWish(row: Row): Wish {
     id: row.id,
     title: row.title,
     url: row.url,
-    imageUrl: row.image_url,
+    // The column holds the bucket key; the URL is rebuilt on every read.
+    imagePath: row.image_url,
+    imageUrl: publicImageUrl(row.image_url),
     note: row.note,
     rating: Number(row.rating),
     status: row.status,
@@ -46,7 +49,7 @@ function merge(current: Wish, patch: WishPatch): WishInput {
   return {
     title: patch.title ?? current.title,
     url: patch.url !== undefined ? patch.url : current.url,
-    imageUrl: patch.imageUrl !== undefined ? patch.imageUrl : current.imageUrl,
+    imagePath: patch.imagePath !== undefined ? patch.imagePath : current.imagePath,
     note: patch.note !== undefined ? patch.note : current.note,
     rating: patch.rating ?? current.rating,
     tags: patch.tags ?? current.tags,
@@ -97,7 +100,7 @@ function createPostgresStore(connectionString: string): WishStore {
         `insert into wishes (title, url, image_url, note, rating, status, tags)
          values ($1, $2, $3, $4, $5, $6, $7::text[])
          returning *`,
-        [input.title, input.url, input.imageUrl, input.note, input.rating, INITIAL_STATUS, input.tags],
+        [input.title, input.url, input.imagePath, input.note, input.rating, INITIAL_STATUS, input.tags],
       );
       return wish!;
     },
@@ -117,7 +120,7 @@ function createPostgresStore(connectionString: string): WishStore {
            updated_at = now()
          where id = $1
          returning *`,
-        [id, next.title, next.url, next.imageUrl, next.note, next.rating, next.tags],
+        [id, next.title, next.url, next.imagePath, next.note, next.rating, next.tags],
       );
     },
 
@@ -166,6 +169,7 @@ function createMemoryStore(): WishStore {
         id: crypto.randomUUID(),
         status: INITIAL_STATUS,
         adminNote: null,
+        imageUrl: publicImageUrl(input.imagePath),
         createdAt: now,
         updatedAt: now,
       };
@@ -175,9 +179,11 @@ function createMemoryStore(): WishStore {
     async update(id, patch) {
       const index = find(id);
       if (index === -1) return null;
+      const merged = merge(wishes[index], patch);
       const next: Wish = {
         ...wishes[index],
-        ...merge(wishes[index], patch),
+        ...merged,
+        imageUrl: publicImageUrl(merged.imagePath),
         updatedAt: new Date().toISOString(),
       };
       wishes[index] = next;

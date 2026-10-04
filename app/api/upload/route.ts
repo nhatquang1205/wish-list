@@ -1,6 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { currentRole } from "@/lib/session";
-import { MAX_UPLOAD_BYTES, isAllowedImage, storageReady, uploadImage } from "@/lib/storage";
+import {
+  MAX_UPLOAD_BYTES,
+  isAllowedImage,
+  publicImageUrl,
+  storageReady,
+  uploadImage,
+} from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 // The S3 client needs TCP, so this must not be moved to the edge runtime.
@@ -36,8 +42,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const url = await uploadImage(new Uint8Array(await file.arrayBuffer()), file.type);
-    return NextResponse.json({ url }, { status: 201 });
+    // `path` is what the wish stores; `url` is only for the form's preview.
+    const path = await uploadImage(new Uint8Array(await file.arrayBuffer()), file.type);
+    return NextResponse.json({ path, url: publicImageUrl(path) }, { status: 201 });
   } catch (error) {
     console.error("upload failed", error);
     return NextResponse.json({ error: "The photo didn't make it. Try again?" }, { status: 502 });

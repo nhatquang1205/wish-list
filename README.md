@@ -88,9 +88,14 @@ table would cost more than it is worth.
 ## Photos
 
 Nina picks a photo in the form and it uploads straight away to a Backblaze B2
-bucket through B2's S3-compatible API ([lib/storage.ts](lib/storage.ts)); the
-resulting public URL is what gets saved on the wish. Keys are
-`wishes/<uuid>.<ext>`, so they are unguessable and cacheable forever.
+bucket through B2's S3-compatible API ([lib/storage.ts](lib/storage.ts)).
+
+**Only the object key is stored** on the wish — `wishes/<uuid>.<ext>`, which is
+unguessable and cacheable forever. The URL the browser loads is rebuilt on every
+read as `https://<B2_BUCKET>.<B2_ENDPOINT host>/<key>`, so moving bucket, region
+or CDN is a config change with no data migration. `Wish.imagePath` is the stored
+key and `Wish.imageUrl` is the derived URL; the form submits the former and the
+card renders the latter.
 
 Setup: create a **public** bucket, then an application key scoped to just that
 bucket, and set `B2_BUCKET`, `B2_ENDPOINT`, `B2_KEY_ID`, `B2_APP_KEY`. With

@@ -6,14 +6,19 @@ const MAX_MB = 8;
 
 /**
  * Uploads as soon as a photo is chosen, so by the time the wish is saved the
- * URL already exists and the form submit stays a single quick request.
+ * object already exists and the form submit stays a single quick request.
+ *
+ * `path` is the bucket key the wish stores; `preview` is the resolved URL the
+ * server hands back, used only to show the thumbnail here.
  */
 export function PhotoPicker({
-  value,
+  path,
+  preview,
   onChange,
 }: {
-  value: string | null;
-  onChange: (url: string | null) => void;
+  path: string | null;
+  preview: string | null;
+  onChange: (path: string | null, url: string | null) => void;
 }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +41,7 @@ export function PhotoPicker({
       const response = await fetch("/api/upload", { method: "POST", body });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.error ?? "That didn't upload.");
-      onChange(data.url as string);
+      onChange(data.path as string, (data.url as string | null) ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "That didn't upload.");
     } finally {
@@ -60,9 +65,15 @@ export function PhotoPicker({
         tabIndex={-1}
       />
 
-      {value ? (
+      {path ? (
         <div className="relative overflow-hidden rounded-xl border border-hairline">
-          <img src={value} alt="" className="h-40 w-full object-cover" />
+          {preview ? (
+            <img src={preview} alt="" className="h-40 w-full object-cover" />
+          ) : (
+            <div className="grid h-40 w-full place-items-center bg-rose-tint text-xs text-muted">
+              Photo attached
+            </div>
+          )}
           <div className="absolute right-2 top-2 flex gap-2">
             <button
               type="button"
@@ -74,7 +85,7 @@ export function PhotoPicker({
             </button>
             <button
               type="button"
-              onClick={() => onChange(null)}
+              onClick={() => onChange(null, null)}
               aria-label="Remove photo"
               className="grid h-8 w-8 place-items-center rounded-full bg-card/90 text-muted backdrop-blur-sm transition-colors hover:text-rose"
             >
