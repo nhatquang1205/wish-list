@@ -8,6 +8,7 @@ import {
   requiresNote,
   wishStatusSchema,
 } from "@/lib/types";
+import { sendApprovalEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -51,5 +52,13 @@ export async function PUT(request: NextRequest, { params }: Context) {
 
   const updated = await store.setStatus(id, status, nextNote);
   if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Send email notification for approvals (non-blocking)
+  if (status === "approved") {
+    sendApprovalEmail(updated).catch((err) => {
+      console.error("Email notification failed:", err);
+    });
+  }
+
   return NextResponse.json(updated);
 }
